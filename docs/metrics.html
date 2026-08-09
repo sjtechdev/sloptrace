@@ -1,0 +1,805 @@
+<title>slop_score — metric reference</title>
+<style>
+  :root {
+    --bg: #f3f2ee;
+    --surface: #ffffff;
+    --surface-2: #eeece4;
+    --ink: #201f1c;
+    --ink-soft: #5c5a52;
+    --ink-faint: #8b887d;
+    --border: #dcd9cf;
+    --rust: #a8431c;
+    --rust-soft: #f4e6de;
+    --verdigris: #33685c;
+    --verdigris-soft: #e2ede9;
+    --good: #4c7a35;
+    --good-soft: #e9f0e0;
+    --focus: #2f6fb0;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #18191b;
+      --surface: #1f2023;
+      --surface-2: #26272a;
+      --ink: #e9e6de;
+      --ink-soft: #a29e92;
+      --ink-faint: #726e63;
+      --border: #34353a;
+      --rust: #e08a55;
+      --rust-soft: #2f2119;
+      --verdigris: #78bba7;
+      --verdigris-soft: #1b2926;
+      --good: #97c96f;
+      --good-soft: #1f2818;
+      --focus: #7db3e8;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #18191b;
+    --surface: #1f2023;
+    --surface-2: #26272a;
+    --ink: #e9e6de;
+    --ink-soft: #a29e92;
+    --ink-faint: #726e63;
+    --border: #34353a;
+    --rust: #e08a55;
+    --rust-soft: #2f2119;
+    --verdigris: #78bba7;
+    --verdigris-soft: #1b2926;
+    --good: #97c96f;
+    --good-soft: #1f2818;
+    --focus: #7db3e8;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { text-wrap: balance; font-weight: 600; }
+  a { color: var(--focus); }
+  a:focus-visible, button:focus-visible, .toc a:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  ::selection { background: var(--rust-soft); }
+
+  code, pre, .mono { font-family: var(--font-mono); }
+  .tabnum { font-variant-numeric: tabular-nums; }
+
+  /* ---------- header ---------- */
+  header.masthead {
+    border-bottom: 1px solid var(--border);
+    padding: 2.25rem 1.5rem 1.75rem;
+  }
+  .masthead-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 0.6rem;
+  }
+  h1.title {
+    font-family: var(--font-mono);
+    font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.15rem);
+    margin: 0 0 0.6rem;
+    letter-spacing: -0.01em;
+  }
+  .dek {
+    max-width: 62ch;
+    color: var(--ink-soft);
+    font-size: 1.02rem;
+    margin: 0;
+  }
+  .trust-key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    margin-top: 1.5rem;
+    font-size: 0.85rem;
+  }
+  .trust-key div { display: flex; gap: 0.5rem; align-items: baseline; }
+  .trust-key .n {
+    font-family: var(--font-mono);
+    color: var(--ink-faint);
+    font-size: 0.78rem;
+  }
+
+  /* ---------- layout ---------- */
+  .layout {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 5rem;
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 3rem;
+    align-items: start;
+  }
+  nav.toc {
+    position: sticky;
+    top: 1.75rem;
+  }
+  nav.toc h2 {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 0.75rem;
+  }
+  nav.toc ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  nav.toc a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 0.9rem;
+    border-left: 2px solid transparent;
+    padding-left: 0.6rem;
+    display: block;
+  }
+  nav.toc a:hover { color: var(--ink); border-left-color: var(--border); }
+
+  main { min-width: 0; }
+  .lede {
+    max-width: 66ch;
+    color: var(--ink-soft);
+  }
+
+  section.metric {
+    border-top: 1px solid var(--border);
+    padding-top: 2.5rem;
+    margin-top: 2.75rem;
+    scroll-margin-top: 1.5rem;
+  }
+  section.metric:first-of-type { border-top: none; padding-top: 0; }
+
+  .metric-head { margin-bottom: 1.1rem; }
+  .metric-id {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 0.35rem;
+  }
+  h2.metric-title {
+    font-size: 1.5rem;
+    margin: 0;
+  }
+  .metric-oneliner {
+    max-width: 66ch;
+    color: var(--ink-soft);
+    font-size: 1.02rem;
+    margin: 0.5rem 0 0;
+  }
+
+  p.prose { max-width: 66ch; }
+  .prose + .prose { margin-top: 0.9rem; }
+
+  .formula {
+    font-family: var(--font-mono);
+    font-size: 0.92rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 0.9rem 1.1rem;
+    margin: 1.1rem 0;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .callout {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0.9rem 1.1rem;
+    margin: 1.25rem 0;
+    max-width: 66ch;
+    font-size: 0.92rem;
+  }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: 0.5rem; }
+  .callout .tag {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rust);
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+
+  /* ---------- rule cards ---------- */
+  article.rule {
+    padding-top: 1.75rem;
+    margin-top: 1.75rem;
+    border-top: 1px dashed var(--border);
+  }
+  article.rule:first-of-type { border-top: none; margin-top: 0.5rem; padding-top: 0; }
+  .rule-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.4rem;
+  }
+  .rule-id {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--rust);
+    letter-spacing: 0.03em;
+  }
+  h3.rule-name { font-size: 1.08rem; margin: 0; }
+  p.rule-desc {
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0 0 1rem;
+  }
+  .code-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  @media (max-width: 620px) {
+    .code-pair { grid-template-columns: 1fr; }
+  }
+  .code-block {
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    overflow-x: auto;
+  }
+  .code-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0;
+    padding: 0.5rem 0.9rem 0;
+  }
+  .code-block.flagged .code-label { color: var(--rust); }
+  .code-block.prefer .code-label { color: var(--good); }
+  .code-block pre {
+    margin: 0;
+    padding: 0.55rem 0.9rem 0.85rem;
+    font-size: 0.82rem;
+    line-height: 1.55;
+  }
+
+  /* ---------- generic tables ---------- */
+  .datatable { width: 100%; overflow-x: auto; margin: 1.25rem 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.88rem;
+    min-width: 460px;
+  }
+  th, td {
+    text-align: left;
+    padding: 0.5rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 500;
+  }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+  tr.total td { border-top: 1px solid var(--ink-faint); font-weight: 600; }
+  tr.dim td { color: var(--ink-faint); }
+  code.rulecode { color: var(--verdigris); }
+
+  footer.page-footer {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 3.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--ink-faint);
+    font-size: 0.85rem;
+  }
+  footer.page-footer code { color: var(--ink-soft); }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; gap: 1.5rem; }
+    nav.toc { position: static; }
+    nav.toc ol { flex-direction: row; flex-wrap: wrap; gap: 0.4rem 1rem; overflow-x: auto; }
+    nav.toc a { border-left: none; padding-left: 0; border-bottom: 2px solid transparent; padding-bottom: 0.2rem; }
+    nav.toc a:hover { border-left-color: transparent; border-bottom-color: var(--border); }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+  }
+</style>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <p class="eyebrow">slop_score · metric reference</p>
+    <h1 class="title">how the numbers get made</h1>
+    <p class="dek">
+      slop_score computes every number from source with a hand-written AST
+      analysis — no LLM judge, nothing subjective. This page walks through
+      each metric in isolation: what it counts, the exact formula, and a
+      worked example.
+    </p>
+    <div class="trust-key">
+      <div><span class="n">trust most →</span> the erosion trend (<code>--history</code>)</div>
+      <div><span class="n">then</span> clone / literal / cycle evidence — point at what's true right now</div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Metric contents">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#orientation">Before the numbers</a></li>
+      <li><a href="#erosion">Erosion</a></li>
+      <li><a href="#clones">Clones</a></li>
+      <li><a href="#literals">Repeated literals</a></li>
+      <li><a href="#cycles">Import cycles</a></li>
+      <li><a href="#movement">Movement</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <section class="metric" id="orientation">
+      <div class="metric-head">
+        <p class="metric-id">Orientation</p>
+        <h2 class="metric-title">Before the numbers</h2>
+      </div>
+      <p class="prose">
+        Four independent things get measured, and none of them roll up into
+        one score:
+      </p>
+      <p class="prose">
+        <strong>Erosion is a trend line, not a grade.</strong> An erosion of
+        <code>0.586</code> means nothing on its own — you have one codebase,
+        not a comparison population, so what matters is the slope between
+        snapshots (<code>--history</code>), not the altitude.
+      </p>
+      <p class="prose">
+        <strong>Clones, repeated literals, and import cycles come with evidence.</strong>
+        Every one of them is reported with the actual file:line locations
+        behind it, not just a count — a hit is something you can go open in
+        an editor.
+      </p>
+      <p class="prose">
+        <strong>Scope is the whole tree, recursively.</strong> Every metric
+        below is computed once, over every <code>.py</code> file found under
+        the path you give it — nested sub-packages included — minus
+        directories like <code>tests/</code>, <code>vendor/</code>, and
+        <code>build/</code> (see <code>DEFAULT_EXCLUDES</code>, overridable
+        with <code>--exclude</code>).
+      </p>
+    </section>
+
+    <section class="metric" id="erosion">
+      <div class="metric-head">
+        <p class="metric-id">Headline number</p>
+        <h2 class="metric-title">Erosion</h2>
+        <p class="metric-oneliner">
+          The share of the codebase's total complexity <em>mass</em> that
+          sits inside high-complexity functions — a slow-moving trend line,
+          backed by the ranked list of functions actually driving it.
+        </p>
+      </div>
+      <p class="prose">
+        Every function gets a "mass": its cyclomatic complexity (from
+        <code>radon</code>) times the square root of its length in
+        statements. Erosion is the share of total mass held by functions
+        with complexity over 10. Weighting by mass, not just counting
+        functions, means one long, tangled function can dominate the number
+        even in an otherwise clean codebase — which is the point: that
+        function is genuinely where most of the risk lives.
+      </p>
+      <div class="formula">mass(f)  = complexity(f) × √statements(f)
+erosion  = Σ mass(f) for f where complexity(f) > 10
+           ─────────────────────────────────────────
+           Σ mass(f) for every function f</div>
+      <p class="prose">A worked example, four functions in one module:</p>
+      <div class="datatable">
+        <table>
+          <thead>
+            <tr><th>Function</th><th class="num">CC</th><th class="num">Statements</th><th class="num">Mass</th><th>High (CC&gt;10)?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>A</td><td class="num tabnum">4</td><td class="num tabnum">16</td><td class="num tabnum">4 × 4 = 16</td><td>—</td></tr>
+            <tr><td>B</td><td class="num tabnum">18</td><td class="num tabnum">25</td><td class="num tabnum">18 × 5 = 90</td><td>yes</td></tr>
+            <tr><td>C</td><td class="num tabnum">7</td><td class="num tabnum">9</td><td class="num tabnum">7 × 3 = 21</td><td>—</td></tr>
+            <tr><td>D</td><td class="num tabnum">35</td><td class="num tabnum">64</td><td class="num tabnum">35 × 8 = 280</td><td>yes</td></tr>
+            <tr class="total"><td>total</td><td></td><td></td><td class="num tabnum">407</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="prose tabnum">
+        high mass = 90 + 280 = 370 → erosion = 370 / 407 =
+        <strong>0.909</strong>
+      </p>
+      <div class="callout">
+        <span class="tag">reading it</span>
+        <p>
+          Only 2 of the 4 functions (50%) cross the CC&gt;10 line, but they
+          hold 91% of the mass. A headcount-based erosion ("50% of functions
+          are complex") would have understated the real concentration of
+          risk. That's why the mass weighting exists.
+        </p>
+      </div>
+
+      <h3 class="rule-name" style="margin-top:2rem;">Functions driving erosion</h3>
+      <p class="rule-desc">
+        Every function B and D above — the ones actually composing the
+        numerator — is kept, ranked by <code>mass ÷ total mass</code>
+        descending, and printed as a table: qualified name, <code>file:line</code>,
+        cyclomatic complexity, cognitive complexity, and its percentage
+        share of the whole codebase's complexity mass. This is the
+        actionable half of the metric — erosion tells you the codebase is
+        eroding; this table tells you exactly which function to open first.
+      </p>
+      <div class="formula">FUNCTIONS DRIVING EROSION
+  function              file:line        CC   COG   mass%
+  parse_config           cfg.py:88        34    41    18.2
+  _handle_request        server.py:212    22    19    11.4
+  validate_payload       io.py:44         17    26     9.1</div>
+      <p class="prose">
+        Cognitive complexity (via <a href="https://pypi.org/project/complexipy/">complexipy</a>,
+        optional dependency — install with <code>slop_score[cognitive]</code>)
+        rides alongside cyclomatic on every row rather than feeding its own
+        threshold into the erosion formula. The two correlate ~0.93, so
+        cognitive earns its place on the residual: it catches deeply nested
+        code that CC scores as simple (requests' <code>Response.iter_content</code>:
+        CC 7, cognitive 29) and forgives flat dispatch that CC punishes.
+        <code>cog_gt_15</code> — a raw count of functions over SonarCloud's
+        default cognitive threshold — is reported separately alongside
+        <code>cc_gt_10</code> / <code>cc_gt_30</code>, not folded into the
+        ranking's sort order.
+      </p>
+      <div class="callout">
+        <span class="tag">without complexipy</span>
+        <p>
+          Cognitive complexity is optional. Without it installed, the
+          offender table still prints — CC and mass% are unaffected — with
+          a <code>-</code> in the COG column and a one-line note in the
+          report pointing at <code>pip install slop_score[cognitive]</code>.
+        </p>
+      </div>
+    </section>
+
+    <section class="metric" id="clones">
+      <div class="metric-head">
+        <p class="metric-id">With evidence</p>
+        <h2 class="metric-title">Clones</h2>
+        <p class="metric-oneliner">
+          Duplicated code at two granularities — whole functions, and
+          statement blocks inside otherwise-different functions — each
+          reported with a <code>file:line</code> for every member.
+        </p>
+      </div>
+      <p class="prose">
+        Both detectors normalise the same way before hashing: local variable
+        names and literals are erased (<code>x</code>, <code>"foo"</code> →
+        <code>V</code>, <code>C</code>) so a renamed copy-paste still
+        matches, but attribute names and the name of a directly-called
+        function are kept intact — otherwise <code>results.append(x)</code>
+        and <code>results.update(x)</code> both collapse to <code>V.A(V)</code>
+        and collide on shape alone. Matching now requires the same
+        <em>operation</em>, not just the same syntactic silhouette.
+      </p>
+
+      <h3 class="rule-name">Whole-function clones</h3>
+      <p class="rule-desc">
+        Two or more functions (methods included, under a scoped qualname so
+        a method isn't a false clone of itself) whose bodies — 3+ statements,
+        docstring excluded — hash identically after normalisation.
+      </p>
+      <div class="formula">whole-function duplicates, 2 group(s):
+     2x  parsing.py::clean_text  search.py::normalize_query
+     3x  api.py::Handler.get  api.py::Handler.post  api.py::Handler.delete</div>
+
+      <h3 class="rule-name" style="margin-top:2rem;">Block clones</h3>
+      <p class="rule-desc">
+        A duplicated run of 3+ consecutive statements <em>inside</em> two
+        otherwise-different functions — the common case whole-function
+        matching misses entirely. A window of that size slides over every
+        block in the module (function bodies, branches, loop bodies,
+        <code>except</code> handlers); windows sharing a normalised hash are
+        clones of each other. A bare run of module-level statements (an
+        import block, top-level constants) is never windowed on its own —
+        two files sharing the same standard-library imports were matching as
+        "clones" before this exclusion.
+      </p>
+      <div class="formula">duplicated statement blocks, 1 group(s):
+     3x  parsing.py:40-42  parsing.py:88-90  search.py:12-14</div>
+      <p class="prose">
+        <code>clone_ratio</code> is the line-count union of every qualifying
+        group (occurring at 2+ distinct locations) divided by LLOC — the
+        same denominator style as erosion, but unweighted, since a
+        duplicated line is a duplicated line regardless of which function it
+        sits in.
+      </p>
+      <div class="formula">clone_ratio = |clone_lines| / LLOC</div>
+      <div class="callout">
+        <span class="tag">overlapping windows are merged first</span>
+        <p>
+          Sliding a 3-statement window by 1 over a genuine 6-statement
+          duplicate produces 4 overlapping windows for what is really ONE
+          location. Before anything is counted, overlapping or adjacent
+          windows in the same file are merged into a single span — without
+          this, one real duplicate reported as "8x" instead of "2x", and
+          worse, a block of merely <em>similarly-shaped</em> statements that
+          was never copy-pasted anywhere else (four <code>self.x = None</code>
+          lines in a row, say — they all normalise to the same statement, so
+          window <code>[0:3]</code> and window <code>[1:4]</code> hash equal)
+          could pass the "2+ occurrences" bar purely by overlapping itself. A
+          clone now has to occur at 2+ locations <em>after</em> that merge —
+          self-overlap alone no longer qualifies.
+        </p>
+      </div>
+      <div class="callout">
+        <span class="tag">then coalesced across windows</span>
+        <p>
+          A real 4-statement duplicate, seen through a 3-statement window,
+          still produces TWO different hashes — <code>stmts[0:3]</code> and
+          <code>stmts[1:4]</code> — each a legitimate 2-location group after
+          the merge above, but describing overlapping SLICES of one clone,
+          not two separate ones. A second pass merges any two groups that
+          have the same number of locations and pair up, file-for-file, with
+          a touching/overlapping location in the other — so what would have
+          printed as two 3-line groups prints as one 4-line group instead.
+        </p>
+      </div>
+      <div class="callout">
+        <span class="tag">tuning</span>
+        <p>
+          Window size (<code>--clone-window</code>, default 3 consecutive
+          statements) is the dominant lever on the block-clone count. A
+          window of 2 matches any two-statement idiom and is meaningless
+          noise; 3 is a defensible minimum clone size — treat it as
+          calibrated, not derived, and re-check it against your own repo
+          before trusting the absolute value.
+        </p>
+      </div>
+
+      <h3 class="rule-name" style="margin-top:2rem;">Divergent clones</h3>
+      <p class="rule-desc">
+        Only available with <code>--history</code>. Structural duplication
+        on its own is mostly benign — it's clones that <em>drift</em> that
+        cause bugs. This compares each snapshot to the one before it:
+        functions that were byte-for-byte structural matches last time and
+        aren't any more get flagged, because it means one copy was fixed (or
+        broken) and the other one wasn't.
+      </p>
+      <div class="code-pair">
+        <div class="code-block flagged">
+          <p class="code-label">prev snapshot — identical</p>
+          <pre><code>class CsvExporter:
+    def validate(self, rows):
+        if not rows:
+            raise ValueError
+
+class JsonExporter:
+    def validate(self, rows):
+        if not rows:
+            raise ValueError</code></pre>
+        </div>
+        <div class="code-block prefer">
+          <p class="code-label">current — diverged</p>
+          <pre><code>class CsvExporter:
+    def validate(self, rows):
+        if not rows:
+            raise ValueError
+        check_encoding(rows)   # added here
+
+class JsonExporter:
+    def validate(self, rows):
+        if not rows:
+            raise ValueError</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="metric" id="literals">
+      <div class="metric-head">
+        <p class="metric-id">With evidence</p>
+        <h2 class="metric-title">Repeated literals</h2>
+        <p class="metric-oneliner">
+          Two related signals, both about hard-coded values that want to be
+          shared constants: the same string repeated inside one file, and
+          the same <em>list</em> of strings repeated anywhere in the repo.
+        </p>
+      </div>
+
+      <h3 class="rule-name">Repeated string</h3>
+      <p class="rule-desc">
+        The same non-trivial string literal (3–60 chars) appearing 4 or
+        more times in one module.
+      </p>
+      <div class="callout">
+        <span class="tag">hidden by default</span>
+        <p>
+          This one is noisy in practice — short identifiers and format
+          specifiers recur for perfectly ordinary reasons, not because
+          they're slop. It's still computed and always in the <code>-o</code>
+          JSON, but the printed report only shows it with
+          <code>--show-literals</code>; without the flag you get a one-line
+          count pointing at the JSON instead. Repeated column list (below)
+          is the sharper signal and always prints.
+        </p>
+      </div>
+      <div class="code-pair">
+        <div class="code-block flagged">
+          <p class="code-label">flags</p>
+          <pre><code>raise ValueError("invalid configuration")
+...
+raise ValueError("invalid configuration")
+...
+log.warning("invalid configuration")
+...
+print("invalid configuration")</code></pre>
+        </div>
+        <div class="code-block prefer">
+          <p class="code-label">prefers</p>
+          <pre><code>INVALID_CONFIG = "invalid configuration"
+raise ValueError(INVALID_CONFIG)
+...
+log.warning(INVALID_CONFIG)</code></pre>
+        </div>
+      </div>
+      <p class="prose">
+        Each qualifying literal is reported with its exact count and every
+        line it appears on, scoped to one file at a time:
+      </p>
+      <div class="formula">REPEATED LITERALS  2 literal(s) repeated 4+ times in one file
+    5x  'username'    models.py:14, 22, 88, 140, 201
+    4x  'created_at'  models.py:23, 89, 141, 202</div>
+      <div class="callout">
+        <span class="tag">not flagged</span>
+        <p>
+          A literal used only as a subscript key —
+          <code>df["username"]</code>, <code>df[["username",
+          "email"]]</code> — is excluded here. On data-heavy code this
+          used to be most of what this rule flagged, and it's a weaker
+          signal than the pattern below: a column name repeated by
+          structural necessity isn't a message copy-pasted four times.
+        </p>
+      </div>
+
+      <h3 class="rule-name" style="margin-top:2rem;">Repeated column list</h3>
+      <p class="rule-desc">
+        The <em>same</em> list or tuple of 3+ string literals, verbatim,
+        reused at 2+ locations anywhere in the repo (not scoped to one
+        file) — the pattern a single subscript key like
+        <code>df["username"]</code> is excluded from above, because a
+        whole schema copy-pasted between two call sites is a stronger,
+        more specific signal than any one of its column names recurring.
+      </p>
+      <div class="code-pair">
+        <div class="code-block flagged">
+          <p class="code-label">flags</p>
+          <pre><code># models.py
+COLUMNS = ["id", "name", "email", "created_at"]
+
+# reports.py
+rows = conn.execute(
+    "SELECT * FROM users",
+    ["id", "name", "email", "created_at"],
+)</code></pre>
+        </div>
+        <div class="code-block prefer">
+          <p class="code-label">prefers</p>
+          <pre><code># models.py
+COLUMNS = ["id", "name", "email", "created_at"]
+
+# reports.py
+from models import COLUMNS
+rows = conn.execute("SELECT * FROM users", COLUMNS)</code></pre>
+        </div>
+      </div>
+      <div class="formula">REPEATED COLUMN LISTS  1 list(s) of 3+ literals reused 2+ times
+    2x  ['id', 'name', 'email', 'created_at']  models.py:2  reports.py:6</div>
+    </section>
+
+    <section class="metric" id="cycles">
+      <div class="metric-head">
+        <p class="metric-id">With evidence</p>
+        <h2 class="metric-title">Import cycles</h2>
+        <p class="metric-oneliner">
+          Strongly-connected components of the intra-repo import graph:
+          modules that cannot be understood independently of each other.
+        </p>
+      </div>
+      <p class="prose">
+        Every module's <code>from ... import ...</code> statements build a
+        dependency graph; cycles are found with Tarjan's strongly-connected-
+        components algorithm, so a 5-module tangle is reported as one
+        component instead of every sub-loop inside it separately. Imports
+        guarded by <code>if TYPE_CHECKING:</code> are excluded from the
+        graph — that guard is the standard fix for a cycle, so counting it
+        would flag the fix as the defect. They're still counted separately
+        (<code>type_only_imports</code>) since a type-only cycle costs
+        nothing at runtime but is still worth knowing about.
+      </p>
+      <div class="code-pair">
+        <div class="code-block flagged">
+          <p class="code-label">flags</p>
+          <pre><code># posts/service.py
+from posts.repository import save
+
+# posts/repository.py
+from posts.models import Post
+
+# posts/models.py
+from posts.service import notify</code></pre>
+        </div>
+        <div class="code-block prefer">
+          <p class="code-label">reported as</p>
+          <pre><code>IMPORT CYCLES  3/40 modules (8%) tangled
+  service -> repository -> models -> service</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="metric" id="movement">
+      <div class="metric-head">
+        <p class="metric-id">Trust this most</p>
+        <h2 class="metric-title">Movement</h2>
+        <p class="metric-oneliner">
+          Only available with <code>--history</code>: how erosion actually
+          moved between snapshots — the one signal with no static
+          equivalent.
+        </p>
+      </div>
+      <div class="formula">delta_erosion_pct = 100 × (erosion[t] − erosion[t-1]) / erosion[t-1]</div>
+      <p class="prose">
+        Printed as one row per sampled commit — <code>ref</code>,
+        <code>date</code>, <code>erosion</code>, <code>dEros%</code>, and
+        the raw <code>cc_gt_10</code> / <code>cc_gt_30</code> counts for that
+        snapshot — so a run of <code>--history</code> reads as a trend line,
+        not a single altitude. Divergent clones (see
+        <a href="#clones">clones</a>) are computed the same way, between
+        each consecutive pair of snapshots.
+      </p>
+      <div class="callout">
+        <span class="tag">why history at all</span>
+        <p>
+          A single snapshot's erosion is uninterpretable without a
+          comparison population — you have one codebase, not a benchmark
+          suite. The trend line sidesteps that: whether 0.586 is fine or not
+          doesn't matter nearly as much as whether it was 0.4 three months
+          ago.
+        </p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="page-footer">
+  <p>
+    Every number on this page also lands in the JSON written by
+    <code>-o out.json</code> — including the full, untruncated offender,
+    clone, and repeated-literal lists (the printed report caps each at a handful of
+    rows for readability). Run <code>slopscore --help</code> for the full
+    flag list.
+  </p>
+</footer>

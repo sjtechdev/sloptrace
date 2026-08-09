@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slop_score"
+version = "0.1.0"
+description = "Deterministic complexity-erosion metrics for a Python codebase."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "sjtechdev" }]
+requires-python = ">=3.9"
+dependencies = [
+    "radon>=6.0",
+]
+
+[project.optional-dependencies]
+cognitive = ["complexipy"]
+
+[project.scripts]
+slopscore = "slopscore:main"
+
+[project.urls]
+Homepage = "https://github.com/sjtechdev/slop_score"
+Repository = "https://github.com/sjtechdev/slop_score"
+
+[tool.setuptools]
+py-modules = ["slopscore"]
