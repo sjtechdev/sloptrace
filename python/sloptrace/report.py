@@ -29,7 +29,7 @@ def print_report(snaps: list[Snapshot], config: Config, show_literals: bool = Fa
 
     # ---- erosion: the headline, plus what's behind it ----
     w(f"\nEROSION    {last.erosion_mass:.3f}   complexity mass sitting in CC>{config.cc_high} functions\n")
-    cog_note = f", {last.cog_gt_15} cognitive>{config.cog_high}" if HAVE_COGNITIVE else " (pip install sloptrace[cognitive] for cognitive complexity)"
+    cog_note = f", {last.cog_gt_15} cognitive>{config.cog_high}" if HAVE_COGNITIVE else ""
     w(f"           {last.cc_gt_10} of {last.functions} functions CC>{config.cc_high} "
       f"({last.cc_gt_30} of those CC>{config.cc_severe}){cog_note}\n")
 

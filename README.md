@@ -15,14 +15,13 @@ analysis, so every number is reproducible from source.
 
 ```bash
 pip install git+https://github.com/sjtechdev/sloptrace.git
-pip install "sloptrace[cognitive] @ git+https://github.com/sjtechdev/sloptrace.git"  # + cognitive complexity
 ```
 
 Development:
 
 ```bash
 git clone https://github.com/sjtechdev/sloptrace.git && cd sloptrace
-pip install -e ".[cognitive,test]"
+pip install -e ".[test]"
 pytest
 ```
 

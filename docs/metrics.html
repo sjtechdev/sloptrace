@@ -463,8 +463,7 @@ erosion  = Σ mass(f) for f where complexity(f) > 10
   _handle_request        server.py:212    22    19    11.4
   validate_payload       io.py:44         17    26     9.1</div>
       <p class="prose">
-        Cognitive complexity (via <a href="https://pypi.org/project/complexipy/">complexipy</a>,
-        optional dependency — install with <code>sloptrace[cognitive]</code>)
+        Cognitive complexity (via <a href="https://pypi.org/project/complexipy/">complexipy</a>)
         rides alongside cyclomatic on every row rather than feeding its own
         threshold into the erosion formula. The two correlate ~0.93, so
         cognitive earns its place on the residual: it catches deeply nested
@@ -475,15 +474,6 @@ erosion  = Σ mass(f) for f where complexity(f) > 10
         <code>cc_gt_10</code> / <code>cc_gt_30</code>, not folded into the
         ranking's sort order.
       </p>
-      <div class="callout">
-        <span class="tag">without complexipy</span>
-        <p>
-          Cognitive complexity is optional. Without it installed, the
-          offender table still prints — CC and mass% are unaffected — with
-          a <code>-</code> in the COG column and a one-line note in the
-          report pointing at <code>pip install sloptrace[cognitive]</code>.
-        </p>
-      </div>
     </section>
 
     <section class="metric" id="clones">

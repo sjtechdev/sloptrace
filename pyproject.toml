@@ -12,10 +12,10 @@ authors = [{ name = "sjtechdev" }]
 requires-python = ">=3.9"
 dependencies = [
     "radon>=6.0",
+    "complexipy",
 ]
 
 [project.optional-dependencies]
-cognitive = ["complexipy"]
 test = ["pytest"]
 
 [project.scripts]
