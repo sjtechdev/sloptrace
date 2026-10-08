@@ -1,15 +1,20 @@
 # sloptrace
 
-Deterministic complexity-erosion metrics for a Python codebase. Adapted from
-SlopCodeBench (Orlanski et al., 2025), with the LLM judge replaced by AST
-analysis, so every number is reproducible from source.
+Is your Python codebase getting messier? sloptrace measures it, and tracks how
+the numbers change over your git history.
 
-- **Erosion**: share of total complexity sitting in high-complexity functions,
-  plus a ranked list of the worst offenders. Watch the trend, not the value.
-- **Clones**: duplicated functions and statement blocks, with file:line evidence.
-- **Repeated literals**: strings or literal lists repeated across a module or
-  repo; usually a missing constant.
-- **Import cycles**: modules that can't be understood independently.
+It reports four things:
+
+| Metric | What it tells you |
+|---|---|
+| **Erosion** | How much of your code's complexity is concentrated in a few huge functions, plus a ranked list of those functions. Watch the trend, not the absolute value. |
+| **Clones** | Copy-pasted functions and code blocks, with `file:line` for each copy. |
+| **Repeated literals** | Strings or lists of literals repeated across the code; usually a missing constant. |
+| **Import cycles** | Modules that import each other and can't be understood on their own. |
+
+Everything is computed from the source with plain AST analysis (no LLM), so
+the same code always gives the same numbers. The approach is adapted from the
+SlopCodeBench paper (Orlanski et al., 2025).
 
 ## Install
 
@@ -17,31 +22,45 @@ analysis, so every number is reproducible from source.
 pip install git+https://github.com/sjtechdev/sloptrace.git
 ```
 
-Development:
-
-```bash
-git clone https://github.com/sjtechdev/sloptrace.git && cd sloptrace
-pip install -e ".[test]"
-pytest
-```
+Requires Python 3.9+.
 
 ## Usage
 
 ```bash
-sloptrace /path/to/repo                                      # HEAD only
-sloptrace /path/to/repo --history --every 20 --max-commits 15
-sloptrace /path/to/repo --history --since 2024-01-01 -o out.json
-sloptrace /path/to/repo --show-literals                      # include repeated literals (noisy)
+sloptrace .                                  # analyse the current checkout
+sloptrace /path/to/repo --history            # ...and how it changed over git history
+sloptrace . --history --every 20 --max-commits 15   # sample every 20th commit, at most 15
+sloptrace . --history --since 2024-01-01 -o out.json
+sloptrace . --show-literals                  # also list repeated literals (noisy, off by default)
+sloptrace --help                             # all options
 ```
 
-Inside a git repo it scans tracked and untracked-but-not-ignored files;
-otherwise it walks the tree. Tests, docs, build output, virtualenvs and
-vendored code are excluded by default (`--exclude` to change).
+Which files are scanned: in a git repo, everything tracked or untracked but
+not ignored; otherwise the whole directory tree. Tests, docs, build output,
+virtualenvs and vendored code are skipped by default; change that with
+`--exclude`.
+
+## Development
+
+```bash
+git clone https://github.com/sjtechdev/sloptrace.git
+cd sloptrace
+pip install -e ".[test]"
+pytest
+```
 
 ## Docs
 
-- [Metric reference](docs/metrics.html): formulas and worked examples.
-- Compared to [`scb-check`](https://pypi.org/project/scb-check/), the paper's
-  reference tool: sloptrace is Python-only and lighter, focused on history and
-  evidence. Erosion differs slightly (decision-point counting), so don't
-  compare absolute numbers with the paper's baselines.
+[Metric reference](docs/metrics.html): the exact formula and a worked example
+for each metric.
+
+## Compared to scb-check
+
+The paper's authors also publish [`scb-check`](https://pypi.org/project/scb-check/).
+It supports many languages and flags code with lots of pattern rules.
+sloptrace only handles Python, but gives you evidence (which functions, which
+copies) and trends over history.
+
+Its erosion number won't exactly match the paper's: the two tools count
+branches slightly differently, so don't compare absolute values with the
+paper's published baselines.

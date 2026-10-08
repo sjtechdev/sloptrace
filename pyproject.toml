@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,16 @@ name = "sloptrace"
 dynamic = ["version"]
 description = "Deterministic complexity-erosion metrics for a Python codebase."
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["complexity", "code-quality", "static-analysis", "technical-debt", "ai-generated-code"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Quality Assurance",
+]
 authors = [{ name = "sjtechdev" }]
 requires-python = ">=3.9"
 dependencies = [
@@ -24,12 +33,14 @@ sloptrace = "sloptrace.cli:main"
 [project.urls]
 Homepage = "https://github.com/sjtechdev/sloptrace"
 Repository = "https://github.com/sjtechdev/sloptrace"
+Issues = "https://github.com/sjtechdev/sloptrace/issues"
 
 [tool.setuptools.dynamic]
 version = { attr = "sloptrace.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["python"]
+exclude = ["sloptrace.tests*"]
 
 [tool.pytest.ini_options]
 testpaths = ["python/sloptrace/tests"]
