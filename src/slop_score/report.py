@@ -10,6 +10,14 @@ from slop_score.config import Config
 from slop_score.snapshot import Snapshot
 
 
+def _module_label(rel: str) -> str:
+    """src/pkg/sub/__init__.py -> sub,  src/pkg/mod.py -> mod"""
+    parts = rel.removesuffix(".py").split("/")
+    if parts[-1] == "__init__" and len(parts) > 1:
+        parts.pop()
+    return parts[-1]
+
+
 def _clip(s: str, n: int) -> str:
     return s if len(s) <= n else "…" + s[-(n - 1):]
 
@@ -96,11 +104,17 @@ def print_report(snaps: list[Snapshot], config: Config, show_literals: bool = Fa
     if last.sccs:
         pct = 100 * last.cyclic_modules / max(last.modules, 1)
         w(f"\nIMPORT CYCLES  {last.cyclic_modules}/{last.modules} modules ({pct:.0f}%) tangled\n")
-        for c in sorted(last.sccs, key=len, reverse=True)[:config.evidence_top_n]:
-            tail = " -> ..." if len(c) > 8 else ""
-            w("  " + " -> ".join(x.split(".")[-1] for x in c[:8]) + tail + "\n")
-        if last.type_only_imports:
-            w(f"  ({last.type_only_imports} additional import(s) are TYPE_CHECKING-guarded and don't run)\n")
+        for c in sorted(last.sccs, key=lambda c: -len(c["modules"]))[:config.evidence_top_n]:
+            more = len(c["modules"]) - (len(c["cycle"]) - 1)
+            w("  " + " -> ".join(_module_label(x) for x in c["cycle"])
+              + (f"   (+{more} more module(s) in this tangle)" if more > 0 else "") + "\n")
+    not_run = []
+    if last.type_only_imports:
+        not_run.append(f"{last.type_only_imports} TYPE_CHECKING-guarded")
+    if last.deferred_imports:
+        not_run.append(f"{last.deferred_imports} function-local or __main__-guarded")
+    if last.sccs and not_run:
+        w(f"  (not counted: {' and '.join(not_run)} import(s), which don't run at import time)\n")
 
     if last.parse_errors:
         w(f"\n  {last.parse_errors} file(s) failed to parse, skipped.\n")

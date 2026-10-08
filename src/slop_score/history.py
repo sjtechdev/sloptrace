@@ -57,7 +57,7 @@ def analyse_history(repo: Path, config: Config, every: int, max_commits: int,
         tmp = Path(tempfile.mkdtemp(prefix="slopscore-"))
         try:
             checkout_to_temp(repo, sha, tmp)
-            s = analyse_tree(tmp, sha, config)
+            s = analyse_tree(tmp, sha, config, root_name=repo.name)
             s.date, s.subject = date, subject
             snaps.append(s)
         finally:

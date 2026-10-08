@@ -17,7 +17,7 @@ from radon.raw import analyze as raw_analyze
 from slop_score import clones, imports, literals
 from slop_score.complexity import FunctionStat, function_stats
 from slop_score.config import Config
-from slop_score.discover import iter_python_files
+from slop_score.discover import ModuleIndex, list_python_files
 
 
 @dataclass
@@ -29,8 +29,8 @@ class FileFacts:
     windows: dict = field(default_factory=dict)
     literal_repeats: list = field(default_factory=list)
     literal_lists: list = field(default_factory=list)
-    imports: list = field(default_factory=list)
-    type_only_imports: int = 0
+    imports: imports.CollectedImports = field(
+        default_factory=lambda: imports.CollectedImports([], 0, 0))
 
 
 def analyse_file(rel: str, src: str, path: str, config: Config) -> FileFacts | None:
@@ -48,7 +48,7 @@ def analyse_file(rel: str, src: str, path: str, config: Config) -> FileFacts | N
         facts.functions = function_stats(src, path)
     except Exception:
         pass
-    facts.imports, facts.type_only_imports = imports.collect_imports(tree)
+    facts.imports = imports.collect_imports(tree)
     facts.fingerprints = clones.collect_fingerprints(tree, rel, config)
     facts.windows = clones.block_clone_windows(tree, rel, config.clone_window)
     facts.literal_repeats = [{**hit, "file": rel} for hit in literals.repeated_literals(tree, config)]
@@ -87,8 +87,9 @@ class Snapshot:
     # -- import cycles --
     modules: int = 0
     cyclic_modules: int = 0
-    type_only_imports: int = 0
-    sccs: list = field(default_factory=list)
+    type_only_imports: int = 0   # under `if TYPE_CHECKING:`, never run
+    deferred_imports: int = 0    # inside function bodies, run on call
+    sccs: list = field(default_factory=list)      # [{modules: [paths], cycle: [a, b, ..., a]}]
 
     # -- deltas (history mode only) --
     delta_erosion_pct: float | None = None
@@ -129,27 +130,24 @@ def _aggregate_clones(snap: Snapshot, facts: list[FileFacts]) -> None:
     snap.clone_ratio = round(min(1.0, len(clone_lines) / max(snap.lloc, 1)), 4)
 
 
-def _aggregate_imports(snap: Snapshot, facts: list[FileFacts]) -> None:
-    import_nodes = {imports.module_name(f.rel): f.imports for f in facts}
-    known = set(import_nodes)
-    edges: dict[str, set[str]] = {m: set() for m in known}
-    for mod, nodes in import_nodes.items():
-        for n in nodes:
-            for tgt in imports.resolve_import(mod, n, known):
-                if tgt != mod:
-                    edges[mod].add(tgt)
-    snap.modules = len(known)
-    snap.type_only_imports = sum(f.type_only_imports for f in facts)
-    snap.sccs = imports.strongly_connected(edges, sorted(known))
-    snap.cyclic_modules = sum(len(c) for c in snap.sccs)
+def _aggregate_imports(snap: Snapshot, facts: list[FileFacts], root_name: str) -> None:
+    index = ModuleIndex([f.rel for f in facts], root_name)
+    edges = imports.import_graph(index, {f.rel: f.imports.runtime for f in facts})
+    snap.modules = len(index.by_rel)
+    snap.type_only_imports = sum(f.imports.type_only for f in facts)
+    snap.deferred_imports = sum(f.imports.deferred for f in facts)
+    snap.sccs = [{"modules": c, "cycle": imports.shortest_cycle(edges, c)}
+                 for c in imports.strongly_connected(edges)]
+    snap.cyclic_modules = sum(len(c["modules"]) for c in snap.sccs)
 
 
-def aggregate(facts: list[FileFacts], ref: str, config: Config, parse_errors: int = 0) -> Snapshot:
+def aggregate(facts: list[FileFacts], ref: str, config: Config, parse_errors: int = 0,
+              root_name: str = "") -> Snapshot:
     snap = Snapshot(ref=ref, parse_errors=parse_errors)
     snap.lloc = sum(f.lloc for f in facts)
     _aggregate_erosion(snap, facts, config)
     _aggregate_clones(snap, facts)
-    _aggregate_imports(snap, facts)
+    _aggregate_imports(snap, facts, root_name)
     repeats = [hit for f in facts for hit in f.literal_repeats]
     repeats.sort(key=lambda h: -h["count"])
     snap.literal_repeats = repeats
@@ -158,10 +156,14 @@ def aggregate(facts: list[FileFacts], ref: str, config: Config, parse_errors: in
     return snap
 
 
-def analyse_tree(root: Path, ref: str, config: Config) -> Snapshot:
+def analyse_tree(root: Path, ref: str, config: Config, root_name: str | None = None) -> Snapshot:
+    """Score the .py files under `root`. `root_name` is the name the root
+    directory would be imported as, if it is itself a package (defaults to
+    its directory name; history mode passes the repo's real name, since it
+    scores a temp-dir copy)."""
     facts, parse_errors = [], 0
-    for p in iter_python_files(root, config.excludes):
-        rel = str(p.relative_to(root))
+    for rel in list_python_files(root, config.excludes):
+        p = root / rel
         try:
             src = p.read_text(encoding="utf-8", errors="replace")
         except OSError:
@@ -172,4 +174,4 @@ def analyse_tree(root: Path, ref: str, config: Config) -> Snapshot:
             parse_errors += 1
         else:
             facts.append(f)
-    return aggregate(facts, ref, config, parse_errors)
+    return aggregate(facts, ref, config, parse_errors, root_name or root.name)
