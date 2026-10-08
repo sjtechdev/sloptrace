@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from slop_score.sloc import code_lines
+from sloptrace.sloc import code_lines
 
 
 def test_sloc_skips_blanks_comments_and_docstrings():
@@ -75,7 +75,7 @@ def test_decorated_function_gets_a_cognitive_score(score):
 
 
 def test_analysis_failure_is_reported_not_swallowed(score, monkeypatch):
-    import slop_score.snapshot as snapshot
+    import sloptrace.snapshot as snapshot
 
     def boom(*a, **k):
         raise RuntimeError("radon exploded")

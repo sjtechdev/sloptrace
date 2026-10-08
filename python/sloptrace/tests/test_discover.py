@@ -3,8 +3,8 @@ import subprocess
 
 import pytest
 
-from slop_score.config import DEFAULT_EXCLUDES
-from slop_score.discover import ModuleIndex, list_python_files
+from sloptrace.config import DEFAULT_EXCLUDES
+from sloptrace.discover import ModuleIndex, list_python_files
 
 
 def test_excludes_tests_hidden_dirs_and_default_segments(make_tree):

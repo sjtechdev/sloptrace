@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 from typing import NamedTuple
 
-from slop_score.discover import Module, ModuleIndex
+from sloptrace.discover import Module, ModuleIndex
 
 
 class ImportRef(NamedTuple):

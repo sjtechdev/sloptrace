@@ -1,4 +1,4 @@
-<title>slop_score — metric reference</title>
+<title>sloptrace — metric reference</title>
 <style>
   :root {
     --bg: #f3f2ee;
@@ -333,10 +333,10 @@
 
 <header class="masthead">
   <div class="masthead-inner">
-    <p class="eyebrow">slop_score · metric reference</p>
+    <p class="eyebrow">sloptrace · metric reference</p>
     <h1 class="title">how the numbers get made</h1>
     <p class="dek">
-      slop_score computes every number from source with a hand-written AST
+      sloptrace computes every number from source with a hand-written AST
       analysis — no LLM judge, nothing subjective. This page walks through
       each metric in isolation: what it counts, the exact formula, and a
       worked example.
@@ -464,7 +464,7 @@ erosion  = Σ mass(f) for f where complexity(f) > 10
   validate_payload       io.py:44         17    26     9.1</div>
       <p class="prose">
         Cognitive complexity (via <a href="https://pypi.org/project/complexipy/">complexipy</a>,
-        optional dependency — install with <code>slop_score[cognitive]</code>)
+        optional dependency — install with <code>sloptrace[cognitive]</code>)
         rides alongside cyclomatic on every row rather than feeding its own
         threshold into the erosion formula. The two correlate ~0.93, so
         cognitive earns its place on the residual: it catches deeply nested
@@ -481,7 +481,7 @@ erosion  = Σ mass(f) for f where complexity(f) > 10
           Cognitive complexity is optional. Without it installed, the
           offender table still prints — CC and mass% are unaffected — with
           a <code>-</code> in the COG column and a one-line note in the
-          report pointing at <code>pip install slop_score[cognitive]</code>.
+          report pointing at <code>pip install sloptrace[cognitive]</code>.
         </p>
       </div>
     </section>
@@ -813,7 +813,7 @@ from posts.service import notify</code></pre>
     Every number on this page also lands in the JSON written by
     <code>-o out.json</code> — including the full, untruncated offender,
     clone, and repeated-literal lists (the printed report caps each at a handful of
-    rows for readability). Run <code>slopscore --help</code> for the full
+    rows for readability). Run <code>sloptrace --help</code> for the full
     flag list.
   </p>
 </footer>

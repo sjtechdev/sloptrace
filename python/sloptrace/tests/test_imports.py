@@ -118,7 +118,7 @@ def test_report_identical_across_hash_seeds(make_tree, tmp_path):
     for seed in ("1", "2", "3", "4", "5", "6"):
         out = tmp_path / f"out{seed}.json"
         env = {**os.environ, "PYTHONHASHSEED": seed}
-        subprocess.run([sys.executable, "-m", "slop_score", str(root), "-o", str(out)],
+        subprocess.run([sys.executable, "-m", "sloptrace", str(root), "-o", str(out)],
                        env=env, check=True, capture_output=True)
         outputs.append(json.loads(out.read_text()))
     assert all(o == outputs[0] for o in outputs)

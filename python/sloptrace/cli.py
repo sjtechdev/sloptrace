@@ -8,10 +8,10 @@ import json
 import sys
 from pathlib import Path
 
-from slop_score.config import DEFAULT_EXCLUDES, Config
-from slop_score.history import analyse_history
-from slop_score.report import print_report
-from slop_score.snapshot import Snapshot, analyse_tree
+from sloptrace.config import DEFAULT_EXCLUDES, Config
+from sloptrace.history import analyse_history
+from sloptrace.report import print_report
+from sloptrace.snapshot import Snapshot, analyse_tree
 
 JSON_SCHEMA_VERSION = 2
 
@@ -28,7 +28,7 @@ def snapshot_to_json(s: Snapshot) -> dict:
 
 def build_parser() -> argparse.ArgumentParser:
     defaults = Config()
-    ap = argparse.ArgumentParser(prog="slopscore",
+    ap = argparse.ArgumentParser(prog="sloptrace",
                                  description="Deterministic complexity-erosion metrics for Python repos.")
     ap.add_argument("repo", type=Path)
     ap.add_argument("--history", action="store_true", help="walk git history instead of scoring the working tree")

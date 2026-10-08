@@ -10,9 +10,9 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-from slop_score.clones import find_divergent_clones
-from slop_score.config import Config
-from slop_score.snapshot import Snapshot, analyse_tree
+from sloptrace.clones import find_divergent_clones
+from sloptrace.config import Config
+from sloptrace.snapshot import Snapshot, analyse_tree
 
 
 def git(repo: Path, *args: str) -> str:
@@ -57,7 +57,7 @@ def analyse_history(repo: Path, config: Config, every: int, max_commits: int,
     snaps = []
     for i, (sha, date, subject) in enumerate(commits, 1):
         print(f"[{i}/{len(commits)}] {sha[:9]} {date} {subject[:50]}", file=sys.stderr)
-        tmp = Path(tempfile.mkdtemp(prefix="slopscore-"))
+        tmp = Path(tempfile.mkdtemp(prefix="sloptrace-"))
         try:
             checkout_to_temp(repo, sha, tmp)
             s = analyse_tree(tmp, sha, config, root_name=repo.name)
