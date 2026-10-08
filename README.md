@@ -48,7 +48,8 @@ For local development, clone the repo and install in editable mode:
 ```bash
 git clone https://github.com/sjtechdev/slop_score.git
 cd slop_score
-pip install -e .
+pip install -e ".[cognitive,test]"
+pytest
 ```
 
 ## Uninstall
@@ -64,7 +65,28 @@ slopscore /path/to/repo                     # HEAD only
 slopscore /path/to/repo --history --every 20 --max-commits 15
 slopscore /path/to/repo --history --since 2024-01-01 -o out.json
 slopscore /path/to/repo --show-literals     # also print REPEATED LITERALS (noisy; hidden by default)
+python -m slop_score /path/to/repo          # same thing, without the console script
 ```
+
+Inside a git work tree, the files scanned are `git ls-files` (tracked plus
+untracked-but-not-ignored), so `.gitignore` is respected. Elsewhere the tree
+is walked directly. Either way, `--exclude` segments (default: tests, docs,
+build output, virtualenvs, vendored code...) and hidden directories are
+skipped.
+
+## Relation to SlopCodeBench's own tooling
+
+The paper's authors publish [`scb-check`](https://pypi.org/project/scb-check/),
+the reference implementation of SCBench's erosion and verbosity scores
+(tree-sitter based, multi-language, with ~140 ast-grep "slop" rules).
+slop_score is the lighter complement: Python only, two small dependencies,
+and focused on history, evidence and structure (offender ranking,
+divergent clones, import cycles, repeated schemas) rather than rule hits.
+
+Both size functions in SLOC, and total SLOC agrees closely, but erosion is
+not identical: radon and tree-sitter count decision points slightly
+differently (requests: 0.408 here vs 0.435). Don't compare slop_score's
+absolute numbers against the paper's published baselines.
 
 ## Metric reference
 
