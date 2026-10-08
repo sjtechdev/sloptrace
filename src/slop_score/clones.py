@@ -12,6 +12,8 @@ from collections import defaultdict
 
 from slop_score.config import Config
 
+Span = tuple[str, int, int]   # (file, first line, last line)
+
 
 class _Normaliser(ast.NodeTransformer):
     """Erase local identifiers and literals so renamed copy-paste still
@@ -234,30 +236,45 @@ def _coalesce_groups(groups: list[list[tuple[str, int, int]]]) -> list[list[tupl
     return groups
 
 
-def build_block_clone_evidence(
-    windows: dict[str, list[tuple[str, int, int]]],
-) -> tuple[list[dict], set[tuple[str, int]]]:
+def block_clone_groups(windows: dict[str, list[Span]]) -> list[list[Span]]:
     """Hashes that occurred at 2+ distinct locations across the repo (after
     merging overlapping/adjacent windows into one location each -- see
     _merge_spans), then coalesced across hashes so a longer duplicate isn't
-    reported as several overlapping smaller ones (see _coalesce_groups).
-    Each group carries every location's file:line range, largest
-    (occurrences) first."""
-    raw_groups: list[list[tuple[str, int, int]]] = []
+    reported as several overlapping smaller ones (see _coalesce_groups)."""
+    raw_groups: list[list[Span]] = []
     for occurrences in windows.values():
         locations = _merge_spans(occurrences)
         if len(locations) >= 2:
             raw_groups.append(locations)
+    return [sorted(g) for g in _coalesce_groups(raw_groups)]
 
-    groups = []
-    clone_lines: set[tuple[str, int]] = set()
-    for locations in _coalesce_groups(raw_groups):
-        locations = sorted(locations)
-        groups.append({
-            "occurrences": len(locations),
-            "locations": [f"{r}:{lo}-{hi}" for r, lo, hi in locations],
-        })
-        for r, lo, hi in locations:
-            clone_lines.update((r, ln) for ln in range(lo, hi + 1))
-    groups.sort(key=lambda g: -g["occurrences"])
-    return groups, clone_lines
+
+def function_clone_spans(fingerprints: dict[str, tuple]) -> list[list[Span]]:
+    """Each whole-function clone group, as the spans of its members."""
+    return [[tuple(fingerprints[m][1:4]) for m in members]
+            for members in clone_groups(fingerprints).values()]
+
+
+def _contains(outer: Span, inner: Span) -> bool:
+    return outer[0] == inner[0] and outer[1] <= inner[1] and inner[2] <= outer[2]
+
+
+def subsumed_by_function_clone(group: list[Span], function_groups: list[list[Span]]) -> bool:
+    """True if every location of a block clone sits inside members of one
+    and the same whole-function clone group. Such a block is just a slice of
+    a duplicate already reported whole, so listing it again double-counts
+    the evidence."""
+    common: set[int] | None = None
+    for loc in group:
+        hits = {i for i, fg in enumerate(function_groups) if any(_contains(s, loc) for s in fg)}
+        common = hits if common is None else common & hits
+        if not common:
+            return False
+    return True
+
+
+def build_block_clone_evidence(groups: list[list[Span]]) -> list[dict]:
+    """Every location's file:line range, largest groups first."""
+    out = [{"occurrences": len(g), "locations": [f"{r}:{lo}-{hi}" for r, lo, hi in g]} for g in groups]
+    out.sort(key=lambda g: -g["occurrences"])
+    return out

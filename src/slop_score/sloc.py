@@ -40,6 +40,10 @@ def code_lines(src: str, tree: ast.AST) -> tuple[int, ...]:
     return tuple(sorted(lines - _docstring_lines(tree)))
 
 
+def lines_in_span(lines: tuple[int, ...], lo: int, hi: int) -> tuple[int, ...]:
+    """The sorted `lines` that fall in [lo, hi]."""
+    return lines[bisect_left(lines, lo):bisect_right(lines, hi)]
+
+
 def count_in_span(lines: tuple[int, ...], lo: int, hi: int) -> int:
-    """How many of the sorted `lines` fall in [lo, hi]."""
     return bisect_right(lines, hi) - bisect_left(lines, lo)

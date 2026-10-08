@@ -118,4 +118,6 @@ def print_report(snaps: list[Snapshot], config: Config, show_literals: bool = Fa
 
     if last.parse_errors:
         w(f"\n  {last.parse_errors} file(s) failed to parse, skipped.\n")
+    if last.warnings:
+        w(f"\n  {len(last.warnings)} file(s) only partly analysed -- see 'warnings' in the -o JSON.\n")
     w("\n")

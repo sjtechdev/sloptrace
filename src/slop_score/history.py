@@ -36,7 +36,10 @@ def checkout_to_temp(repo: Path, sha: str, dest: Path) -> None:
     """git archive is cheaper and safer than a worktree: no index, no locks."""
     p = subprocess.run(["git", "-C", str(repo), "archive", sha], capture_output=True, check=True)
     with tarfile.open(fileobj=io.BytesIO(p.stdout)) as tf:
-        tf.extractall(dest)
+        if hasattr(tarfile, "data_filter"):   # 3.12+, and security backports
+            tf.extractall(dest, filter="data")
+        else:
+            tf.extractall(dest)
 
 
 def add_deltas(snaps: list[Snapshot]) -> None:

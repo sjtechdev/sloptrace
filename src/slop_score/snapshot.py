@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from slop_score import clones, imports, literals, sloc
-from slop_score.complexity import FunctionStat, function_stats
+from slop_score.complexity import FunctionStat, cognitive_lookup, function_stats, no_cognitive
 from slop_score.config import Config
 from slop_score.discover import ModuleIndex, list_python_files
 
@@ -27,12 +27,15 @@ class FileFacts:
     windows: dict = field(default_factory=dict)
     literal_repeats: list = field(default_factory=list)
     literal_lists: list = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)   # partial-analysis failures
     imports: imports.CollectedImports = field(
         default_factory=lambda: imports.CollectedImports([], 0, 0))
 
 
-def analyse_file(rel: str, src: str, path: str, config: Config) -> FileFacts | None:
-    """None if the file doesn't parse."""
+def analyse_file(rel: str, src: str, config: Config) -> FileFacts | None:
+    """None if the file doesn't parse. A failure in one analysis (a radon or
+    complexipy crash) is recorded in `warnings` rather than dropping the
+    file or failing silently."""
     try:
         tree = ast.parse(src)
     except (SyntaxError, ValueError):
@@ -40,9 +43,14 @@ def analyse_file(rel: str, src: str, path: str, config: Config) -> FileFacts | N
     facts = FileFacts(rel=rel)
     facts.code_lines = sloc.code_lines(src, tree)
     try:
-        facts.functions = function_stats(src, path, facts.code_lines)
-    except Exception:
-        pass
+        cognitive = cognitive_lookup(src)
+    except Exception as e:
+        facts.warnings.append(f"{rel}: cognitive complexity failed ({type(e).__name__}: {e})")
+        cognitive = no_cognitive
+    try:
+        facts.functions = function_stats(src, facts.code_lines, cognitive)
+    except Exception as e:
+        facts.warnings.append(f"{rel}: cyclomatic complexity failed ({type(e).__name__}: {e})")
     facts.imports = imports.collect_imports(tree)
     facts.fingerprints = clones.collect_fingerprints(tree, rel, config)
     facts.windows = clones.block_clone_windows(tree, rel, config.clone_window)
@@ -59,6 +67,7 @@ class Snapshot:
     sloc: int = 0
     functions: int = 0
     parse_errors: int = 0
+    warnings: list = field(default_factory=list)
 
     # -- erosion --
     cc_gt_10: int = 0
@@ -68,8 +77,8 @@ class Snapshot:
     erosion_offenders: list = field(default_factory=list)   # ranked functions behind it
 
     # -- clones --
-    clone_ratio: float = 0.0
-    clone_line_count: int = 0
+    clone_ratio: float = 0.0                      # clone SLOC / total SLOC
+    clone_line_count: int = 0                     # SLOC inside any clone
     function_clones: list = field(default_factory=list)     # whole-body dup groups, w/ evidence
     block_clones: list = field(default_factory=list)        # dup statement-window groups, w/ evidence
     func_fingerprints: dict = field(default_factory=dict, metadata={"internal": True})
@@ -119,10 +128,22 @@ def _aggregate_clones(snap: Snapshot, facts: list[FileFacts]) -> None:
         snap.func_fingerprints.update(f.fingerprints)
         for h, occ in f.windows.items():
             windows[h].extend(occ)
+    function_groups = clones.function_clone_spans(snap.func_fingerprints)
+    block_groups = clones.block_clone_groups(windows)
+
+    # clone_ratio counts code lines (SLOC) covered by any clone, so it has
+    # the same unit as its denominator; a duplicated function counts whole.
+    code_lines = {f.rel: f.code_lines for f in facts}
+    covered: set[tuple[str, int]] = set()
+    for group in function_groups + block_groups:
+        for rel, lo, hi in group:
+            covered.update((rel, ln) for ln in sloc.lines_in_span(code_lines[rel], lo, hi))
+    snap.clone_line_count = len(covered)
+    snap.clone_ratio = round(len(covered) / snap.sloc, 4) if snap.sloc else 0.0
+
     snap.function_clones = clones.build_function_clone_evidence(snap.func_fingerprints)
-    snap.block_clones, clone_lines = clones.build_block_clone_evidence(windows)
-    snap.clone_line_count = len(clone_lines)
-    snap.clone_ratio = round(min(1.0, len(clone_lines) / max(snap.sloc, 1)), 4)
+    snap.block_clones = clones.build_block_clone_evidence(
+        [g for g in block_groups if not clones.subsumed_by_function_clone(g, function_groups)])
 
 
 def _aggregate_imports(snap: Snapshot, facts: list[FileFacts], root_name: str) -> None:
@@ -140,6 +161,7 @@ def aggregate(facts: list[FileFacts], ref: str, config: Config, parse_errors: in
               root_name: str = "") -> Snapshot:
     snap = Snapshot(ref=ref, parse_errors=parse_errors)
     snap.sloc = sum(len(f.code_lines) for f in facts)
+    snap.warnings = [w for f in facts for w in f.warnings]
     _aggregate_erosion(snap, facts, config)
     _aggregate_clones(snap, facts)
     _aggregate_imports(snap, facts, root_name)
@@ -164,7 +186,7 @@ def analyse_tree(root: Path, ref: str, config: Config, root_name: str | None = N
         except OSError:
             parse_errors += 1
             continue
-        f = analyse_file(rel, src, str(p), config)
+        f = analyse_file(rel, src, config)
         if f is None:
             parse_errors += 1
         else:

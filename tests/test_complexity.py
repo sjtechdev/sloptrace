@@ -47,3 +47,39 @@ def test_huge_literal_is_fast(score):
     snap = score({"table.py": "TABLE = {\n" + body + "\n}\n"})
     assert time.perf_counter() - t < 3
     assert snap.sloc == 4002
+
+
+def test_decorated_function_gets_a_cognitive_score(score):
+    pytest.importorskip("complexipy")
+    snap = score({"m.py": """
+        import functools
+
+        class C:
+            @staticmethod
+            @functools.lru_cache
+            def nested(xs):
+                for x in xs:
+                    if x:
+                        for y in x:
+                            if y:
+                                while y:
+                                    if y > 1:
+                                        y -= 1
+                                    elif y:
+                                        break
+                return xs
+    """})
+    # previously None: complexipy reports this function from its first
+    # decorator line, radon from the `def` line, and the lookup was by line
+    assert snap.cog_gt_15 == 1
+
+
+def test_analysis_failure_is_reported_not_swallowed(score, monkeypatch):
+    import slop_score.snapshot as snapshot
+
+    def boom(*a, **k):
+        raise RuntimeError("radon exploded")
+    monkeypatch.setattr(snapshot, "function_stats", boom)
+    snap = score({"m.py": "def f():\n    return 1\n"})
+    assert snap.functions == 0
+    assert snap.warnings == ["m.py: cyclomatic complexity failed (RuntimeError: radon exploded)"]
