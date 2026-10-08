@@ -3,8 +3,8 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "slop_score"
-version = "0.1.0"
+name = "sloptrace"
+dynamic = ["version"]
 description = "Deterministic complexity-erosion metrics for a Python codebase."
 readme = "README.md"
 license = { text = "MIT" }
@@ -12,17 +12,24 @@ authors = [{ name = "sjtechdev" }]
 requires-python = ">=3.9"
 dependencies = [
     "radon>=6.0",
+    "complexipy",
 ]
 
 [project.optional-dependencies]
-cognitive = ["complexipy"]
+test = ["pytest"]
 
 [project.scripts]
-slopscore = "slopscore:main"
+sloptrace = "sloptrace.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/sjtechdev/slop_score"
-Repository = "https://github.com/sjtechdev/slop_score"
+Homepage = "https://github.com/sjtechdev/sloptrace"
+Repository = "https://github.com/sjtechdev/sloptrace"
 
-[tool.setuptools]
-py-modules = ["slopscore"]
+[tool.setuptools.dynamic]
+version = { attr = "sloptrace.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["python"]
+
+[tool.pytest.ini_options]
+testpaths = ["python/sloptrace/tests"]

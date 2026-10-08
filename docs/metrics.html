@@ -1,4 +1,4 @@
-<title>slop_score — metric reference</title>
+<title>sloptrace — metric reference</title>
 <style>
   :root {
     --bg: #f3f2ee;
@@ -333,10 +333,10 @@
 
 <header class="masthead">
   <div class="masthead-inner">
-    <p class="eyebrow">slop_score · metric reference</p>
+    <p class="eyebrow">sloptrace · metric reference</p>
     <h1 class="title">how the numbers get made</h1>
     <p class="dek">
-      slop_score computes every number from source with a hand-written AST
+      sloptrace computes every number from source with a hand-written AST
       analysis — no LLM judge, nothing subjective. This page walks through
       each metric in isolation: what it counts, the exact formula, and a
       worked example.
@@ -406,14 +406,15 @@
       </div>
       <p class="prose">
         Every function gets a "mass": its cyclomatic complexity (from
-        <code>radon</code>) times the square root of its length in
-        statements. Erosion is the share of total mass held by functions
+        <code>radon</code>) times the square root of its length in source
+        lines of code (SLOC: lines carrying code, not blanks, comments or
+        docstrings), as in SlopCodeBench's Eq.&nbsp;2. Erosion is the share of total mass held by functions
         with complexity over 10. Weighting by mass, not just counting
         functions, means one long, tangled function can dominate the number
         even in an otherwise clean codebase — which is the point: that
         function is genuinely where most of the risk lives.
       </p>
-      <div class="formula">mass(f)  = complexity(f) × √statements(f)
+      <div class="formula">mass(f)  = complexity(f) × √SLOC(f)
 erosion  = Σ mass(f) for f where complexity(f) > 10
            ─────────────────────────────────────────
            Σ mass(f) for every function f</div>
@@ -421,7 +422,7 @@ erosion  = Σ mass(f) for f where complexity(f) > 10
       <div class="datatable">
         <table>
           <thead>
-            <tr><th>Function</th><th class="num">CC</th><th class="num">Statements</th><th class="num">Mass</th><th>High (CC&gt;10)?</th></tr>
+            <tr><th>Function</th><th class="num">CC</th><th class="num">SLOC</th><th class="num">Mass</th><th>High (CC&gt;10)?</th></tr>
           </thead>
           <tbody>
             <tr><td>A</td><td class="num tabnum">4</td><td class="num tabnum">16</td><td class="num tabnum">4 × 4 = 16</td><td>—</td></tr>
@@ -462,8 +463,7 @@ erosion  = Σ mass(f) for f where complexity(f) > 10
   _handle_request        server.py:212    22    19    11.4
   validate_payload       io.py:44         17    26     9.1</div>
       <p class="prose">
-        Cognitive complexity (via <a href="https://pypi.org/project/complexipy/">complexipy</a>,
-        optional dependency — install with <code>slop_score[cognitive]</code>)
+        Cognitive complexity (via <a href="https://pypi.org/project/complexipy/">complexipy</a>)
         rides alongside cyclomatic on every row rather than feeding its own
         threshold into the erosion formula. The two correlate ~0.93, so
         cognitive earns its place on the residual: it catches deeply nested
@@ -474,15 +474,6 @@ erosion  = Σ mass(f) for f where complexity(f) > 10
         <code>cc_gt_10</code> / <code>cc_gt_30</code>, not folded into the
         ranking's sort order.
       </p>
-      <div class="callout">
-        <span class="tag">without complexipy</span>
-        <p>
-          Cognitive complexity is optional. Without it installed, the
-          offender table still prints — CC and mass% are unaffected — with
-          a <code>-</code> in the COG column and a one-line note in the
-          report pointing at <code>pip install slop_score[cognitive]</code>.
-        </p>
-      </div>
     </section>
 
     <section class="metric" id="clones">
@@ -531,13 +522,16 @@ erosion  = Σ mass(f) for f where complexity(f) > 10
       <div class="formula">duplicated statement blocks, 1 group(s):
      3x  parsing.py:40-42  parsing.py:88-90  search.py:12-14</div>
       <p class="prose">
-        <code>clone_ratio</code> is the line-count union of every qualifying
-        group (occurring at 2+ distinct locations) divided by LLOC — the
-        same denominator style as erosion, but unweighted, since a
-        duplicated line is a duplicated line regardless of which function it
-        sits in.
+        <code>clone_ratio</code> is the number of code lines (SLOC) covered
+        by any qualifying group — block clones occurring at 2+ distinct
+        locations, plus every member of a whole-function clone — divided by
+        total SLOC. Numerator and denominator count the same kind of line,
+        so the ratio is bounded by 1 without clamping. A block clone lying
+        entirely inside the members of one whole-function clone is not
+        listed again as a block: it's a slice of a duplicate already
+        reported whole.
       </p>
-      <div class="formula">clone_ratio = |clone_lines| / LLOC</div>
+      <div class="formula">clone_ratio = |clone SLOC| / SLOC</div>
       <div class="callout">
         <span class="tag">overlapping windows are merged first</span>
         <p>
@@ -729,15 +723,25 @@ rows = conn.execute("SELECT * FROM users", COLUMNS)</code></pre>
         </p>
       </div>
       <p class="prose">
-        Every module's <code>from ... import ...</code> statements build a
-        dependency graph; cycles are found with Tarjan's strongly-connected-
+        Every module's <code>import ...</code> and
+        <code>from ... import ...</code> statements build a dependency
+        graph, with each import pointing at the most specific module it
+        names (<code>from pkg import mod</code> is an edge to
+        <code>pkg.mod</code> when that's a module, else to
+        <code>pkg/__init__.py</code>). Module names come from each file's
+        import root, so <code>src/</code> layouts and script directories
+        resolve exactly; an absolute import that could mean modules under
+        two different roots is skipped rather than guessed. Cycles are found with Tarjan's strongly-connected-
         components algorithm, so a 5-module tangle is reported as one
         component instead of every sub-loop inside it separately. Imports
-        guarded by <code>if TYPE_CHECKING:</code> are excluded from the
-        graph — that guard is the standard fix for a cycle, so counting it
-        would flag the fix as the defect. They're still counted separately
-        (<code>type_only_imports</code>) since a type-only cycle costs
-        nothing at runtime but is still worth knowing about.
+        that don't run when the module is imported are excluded from the
+        graph: those under <code>if TYPE_CHECKING:</code>, inside a function
+        body, or under <code>if __name__ == "__main__":</code>. The first two
+        are the standard fixes for a cycle, so counting them would flag the
+        fix as the defect. They're still counted separately
+        (<code>type_only_imports</code>, <code>deferred_imports</code>).
+        Each cycle is reported with one concrete loop through it, as
+        evidence you can follow file by file.
       </p>
       <div class="code-pair">
         <div class="code-block flagged">
@@ -754,7 +758,7 @@ from posts.service import notify</code></pre>
         <div class="code-block prefer">
           <p class="code-label">reported as</p>
           <pre><code>IMPORT CYCLES  3/40 modules (8%) tangled
-  service -> repository -> models -> service</code></pre>
+  models -> service -> repository -> models</code></pre>
         </div>
       </div>
     </section>
@@ -799,7 +803,7 @@ from posts.service import notify</code></pre>
     Every number on this page also lands in the JSON written by
     <code>-o out.json</code> — including the full, untruncated offender,
     clone, and repeated-literal lists (the printed report caps each at a handful of
-    rows for readability). Run <code>slopscore --help</code> for the full
+    rows for readability). Run <code>sloptrace --help</code> for the full
     flag list.
   </p>
 </footer>
