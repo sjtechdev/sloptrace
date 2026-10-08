@@ -12,9 +12,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from radon.raw import analyze as raw_analyze
-
-from slop_score import clones, imports, literals
+from slop_score import clones, imports, literals, sloc
 from slop_score.complexity import FunctionStat, function_stats
 from slop_score.config import Config
 from slop_score.discover import ModuleIndex, list_python_files
@@ -23,7 +21,7 @@ from slop_score.discover import ModuleIndex, list_python_files
 @dataclass
 class FileFacts:
     rel: str
-    lloc: int = 0
+    code_lines: tuple[int, ...] = ()   # sorted; len() is the file's SLOC
     functions: list[FunctionStat] = field(default_factory=list)
     fingerprints: dict = field(default_factory=dict)
     windows: dict = field(default_factory=dict)
@@ -40,12 +38,9 @@ def analyse_file(rel: str, src: str, path: str, config: Config) -> FileFacts | N
     except (SyntaxError, ValueError):
         return None
     facts = FileFacts(rel=rel)
+    facts.code_lines = sloc.code_lines(src, tree)
     try:
-        facts.lloc = raw_analyze(src).lloc
-    except Exception:
-        pass
-    try:
-        facts.functions = function_stats(src, path)
+        facts.functions = function_stats(src, path, facts.code_lines)
     except Exception:
         pass
     facts.imports = imports.collect_imports(tree)
@@ -61,7 +56,7 @@ class Snapshot:
     ref: str
     date: str = ""
     subject: str = ""   # row label for humans reading the JSON, not a metric
-    lloc: int = 0
+    sloc: int = 0
     functions: int = 0
     parse_errors: int = 0
 
@@ -127,7 +122,7 @@ def _aggregate_clones(snap: Snapshot, facts: list[FileFacts]) -> None:
     snap.function_clones = clones.build_function_clone_evidence(snap.func_fingerprints)
     snap.block_clones, clone_lines = clones.build_block_clone_evidence(windows)
     snap.clone_line_count = len(clone_lines)
-    snap.clone_ratio = round(min(1.0, len(clone_lines) / max(snap.lloc, 1)), 4)
+    snap.clone_ratio = round(min(1.0, len(clone_lines) / max(snap.sloc, 1)), 4)
 
 
 def _aggregate_imports(snap: Snapshot, facts: list[FileFacts], root_name: str) -> None:
@@ -144,7 +139,7 @@ def _aggregate_imports(snap: Snapshot, facts: list[FileFacts], root_name: str) -
 def aggregate(facts: list[FileFacts], ref: str, config: Config, parse_errors: int = 0,
               root_name: str = "") -> Snapshot:
     snap = Snapshot(ref=ref, parse_errors=parse_errors)
-    snap.lloc = sum(f.lloc for f in facts)
+    snap.sloc = sum(len(f.code_lines) for f in facts)
     _aggregate_erosion(snap, facts, config)
     _aggregate_clones(snap, facts)
     _aggregate_imports(snap, facts, root_name)

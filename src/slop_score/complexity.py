@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 from radon.complexity import cc_visit
 
+from slop_score.sloc import count_in_span
+
 try:
     import complexipy   # cognitive complexity (Campbell / SonarSource algorithm)
     HAVE_COGNITIVE = True
@@ -20,12 +22,12 @@ class FunctionStat:
     lineno: int
     cc: int
     cog: int | None
-    size: int          # lines used for the size term of Eq.2
+    sloc: int          # size term of Eq.2
 
     @property
     def mass(self) -> float:
-        """SCBench Eq.2: complexity weighted by the square root of size."""
-        return self.cc * math.sqrt(self.size)
+        """SCBench Eq.2: CC weighted by the square root of SLOC."""
+        return self.cc * math.sqrt(self.sloc)
 
 
 def _cognitive_by_line(path: str) -> dict[int, int]:
@@ -34,7 +36,7 @@ def _cognitive_by_line(path: str) -> dict[int, int]:
     return {fn.line_start: fn.complexity for fn in complexipy.file_complexity(path).functions}
 
 
-def function_stats(src: str, path: str) -> list[FunctionStat]:
+def function_stats(src: str, path: str, code_lines: tuple[int, ...]) -> list[FunctionStat]:
     try:
         cog = _cognitive_by_line(path)
     except Exception:
@@ -50,6 +52,6 @@ def function_stats(src: str, path: str) -> list[FunctionStat]:
         qualname = f"{block.classname}.{block.name}" if block.classname else block.name
         out.append(FunctionStat(
             qualname=qualname, lineno=block.lineno, cc=block.complexity,
-            cog=cog.get(block.lineno), size=max(1, endline - block.lineno + 1),
+            cog=cog.get(block.lineno), sloc=max(1, count_in_span(code_lines, block.lineno, endline)),
         ))
     return out

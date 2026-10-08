@@ -58,8 +58,8 @@ def print_report(snaps: list[Snapshot], config: Config, show_literals: bool = Fa
 
     # ---- clones, with evidence ----
     if last.function_clones or last.block_clones:
-        w(f"\nCLONES     {last.clone_ratio:.3f}   duplicated lines / LLOC "
-          f"({last.clone_line_count} of {max(last.lloc, 1)} lines)\n")
+        w(f"\nCLONES     {last.clone_ratio:.3f}   duplicated lines / SLOC "
+          f"({last.clone_line_count} of {max(last.sloc, 1)} lines)\n")
         if last.function_clones:
             w(f"  whole-function duplicates, {len(last.function_clones)} group(s):\n")
             for g in last.function_clones[:config.evidence_top_n]:
