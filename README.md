@@ -32,6 +32,9 @@ sloptrace /path/to/repo --history            # ...and how it changed over git hi
 sloptrace . --history --every 20 --max-commits 15   # sample every 20th commit, at most 15
 sloptrace . --history --since 2024-01-01 -o out.json
 sloptrace . --show-literals                  # also list repeated literals (noisy, off by default)
+sloptrace C --with ../A --with ../B       # also report code C shares with other repos (they aren't scored)
+sloptrace C --base ../A --with ../B       # ...and treat A as the shared base layer (reuse / lift / layering)
+sloptrace C --base ../A --similarity 0.8  # near-duplicate functions need >=80% shared statements (default 0.7, 0 = off)
 sloptrace --help                             # all options
 ```
 
