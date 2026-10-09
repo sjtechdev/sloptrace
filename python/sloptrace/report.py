@@ -22,6 +22,47 @@ def _clip(s: str, n: int) -> str:
     return s if len(s) <= n else "…" + s[-(n - 1):]
 
 
+_KIND_TITLES = {
+    "in_base": "ALREADY IN BASE {base}   reuse it instead of keeping a copy",
+    "lift_candidate": "LIFT INTO {base}?   shared with another repo, absent from the base",
+    "shared": "SHARED WITH {repos}",
+}
+
+
+def _print_cross_repo(x: dict, config: Config, w) -> None:
+    base = x["base"]
+    groups = [("whole functions", g) for g in x["function_clones"]] + \
+             [("statement blocks", g) for g in x["block_clones"]] + \
+             [("column list", g) for g in x["column_lists"]]
+    if not groups:
+        w(f"\nSHARED WITH {', '.join(x['repos'])}  nothing found\n")
+    for kind in ("in_base", "lift_candidate", "shared"):
+        mine = [(label, g) for label, g in groups if g["kind"] == kind]
+        if not mine:
+            continue
+        w("\n" + _KIND_TITLES[kind].format(base=base, repos=", ".join(x["repos"])) + "\n")
+        for label, g in mine[:config.evidence_top_n]:
+            extra = len(g["locations"]) - 4
+            shown = f"[{', '.join(repr(v) for v in g['values'][:5])}]  " if "values" in g else ""
+            w(f"  {len(g['locations']):>2}x  {shown}" + "  ".join(g["locations"][:4])
+              + (f"  +{extra} more" if extra > 0 else "") + f"   ({label})\n")
+        if len(mine) > config.evidence_top_n:
+            w(f"  ... {len(mine) - config.evidence_top_n} more in JSON output (-o)\n")
+
+    if x["dependencies"]:
+        w("\nREPO DEPENDENCIES\n")
+        for d in x["dependencies"]:
+            w(f"  {d['from']} -> {d['to']}   {d['count']} import(s), e.g. {d['examples'][0]}\n")
+    if x["violations"]:
+        w("\nLAYERING VIOLATIONS\n")
+        for v in x["violations"]:
+            what = (f"base {v['from']} imports from {v['to']}" if v["kind"] == "base-imports-dependent"
+                    else f"{v['from']} and {v['to']} import each other")
+            w(f"  {what}\n")
+            for e in v["examples"]:
+                w(f"      {e}\n")
+
+
 def print_report(snaps: list[Snapshot], config: Config, show_literals: bool = False,
                  out: TextIO | None = None) -> None:
     w = (out or sys.stdout).write
@@ -77,24 +118,9 @@ def print_report(snaps: list[Snapshot], config: Config, show_literals: bool = Fa
         w(f"  divergent ({len(div)}): identical last snapshot, not any more -- "
           + "; ".join(" / ".join(m.split("::")[-1] for m in d["members"][:3]) for d in div[:4]) + "\n")
 
-    # ---- code shared with the --with repos ----
-    x = last.cross_repo
-    if x:
-        others = ", ".join(x["repos"])
-        found = x["function_clones"] or x["block_clones"] or x["column_lists"]
-        w(f"\nSHARED WITH {others}\n" if found else f"\nSHARED WITH {others}  nothing found\n")
-        for title, key in (("whole functions", "function_clones"), ("statement blocks", "block_clones")):
-            if x[key]:
-                w(f"  {title}, {len(x[key])} group(s):\n")
-                for g in x[key][:config.evidence_top_n]:
-                    extra = len(g["locations"]) - 4
-                    w(f"    {len(g['locations']):>2}x  " + "  ".join(g["locations"][:4])
-                      + (f"  +{extra} more" if extra > 0 else "") + "\n")
-        if x["column_lists"]:
-            w(f"  column lists, {len(x['column_lists'])} list(s):\n")
-            for g in x["column_lists"][:config.evidence_top_n]:
-                vals = ", ".join(repr(v) for v in g["values"][:6]) + (", …" if len(g["values"]) > 6 else "")
-                w(f"    {g['count']:>2}x  [{vals}]  " + "  ".join(g["locations"][:4]) + "\n")
+    # ---- other repos (--with / --base) ----
+    if last.cross_repo:
+        _print_cross_repo(last.cross_repo, config, w)
 
     # ---- repeated literals: noisy on most codebases, so JSON-only unless
     # --show-literals is passed. Repeated COLUMN LISTS (below) is the

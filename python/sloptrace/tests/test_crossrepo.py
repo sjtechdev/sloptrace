@@ -69,3 +69,71 @@ def test_cli_rejects_with_plus_history(make_tree):
     r = _repos(make_tree, C=DUP, A=DUP)
     with pytest.raises(SystemExit):
         main([str(r["C"]), "--with", str(r["A"]), "--history"])
+
+
+# ---- --base: classification and layering ----
+
+LIB = "def helper(x):\n    return x\n"
+
+
+def _layered(make_tree, c_extra="", a_extra="", b_extra=""):
+    return make_tree({
+        "A/alib/__init__.py": "", "A/alib/core.py": LIB + a_extra,
+        "B/blib/__init__.py": "", "B/blib/svc.py": "from alib.core import helper\n" + b_extra,
+        "C/capp/__init__.py": "", "C/capp/main.py": "from alib.core import helper\n" + c_extra,
+    })
+
+
+def test_import_edges_and_summary(make_tree):
+    root = _layered(make_tree, b_extra="from capp.main import helper\n")
+    snap = analyse_with_references(root / "C", [root / "A", root / "B"], Config(), base=root / "A")
+    deps = {(d["from"], d["to"]): d["count"] for d in snap.cross_repo["dependencies"]}
+    assert deps == {("C", "A"): 1, ("B", "A"): 1, ("B", "C"): 1}
+    assert snap.cross_repo["violations"] == []
+
+
+def test_base_importing_a_dependent_is_a_violation(make_tree):
+    root = _layered(make_tree, a_extra="from capp.main import helper as h\n")
+    snap = analyse_with_references(root / "C", [root / "A"], Config(), base=root / "A")
+    (v,) = snap.cross_repo["violations"]
+    assert (v["kind"], v["from"], v["to"]) == ("base-imports-dependent", "A", "C")
+    assert "A:alib/core.py:" in v["examples"][0]
+
+
+def test_two_repos_importing_each_other_is_a_cycle_unless_one_is_base(make_tree):
+    root = _layered(make_tree, c_extra="from blib.svc import helper as h\n",
+                    b_extra="from capp.main import helper as g\n")
+    snap = analyse_with_references(root / "C", [root / "A", root / "B"], Config(), base=root / "A")
+    (v,) = snap.cross_repo["violations"]
+    assert (v["kind"], v["from"], v["to"]) == ("repo-cycle", "B", "C")
+
+
+def test_relative_and_in_repo_imports_are_not_cross_repo(make_tree):
+    root = make_tree({"C/capp/__init__.py": "", "C/capp/a.py": "from . import b\nfrom capp import b as c\n",
+                      "C/capp/b.py": "", "A/capp/__init__.py": "", "A/capp/b.py": ""})
+    snap = analyse_with_references(root / "C", [root / "A"], Config())
+    assert snap.cross_repo["dependencies"] == []
+
+
+SECOND = """
+    def second(a):
+        b = []
+        for x in a:
+            if x > 1:
+                b.append(x * 2)
+        return b
+"""
+
+
+def test_clones_are_classified_against_the_base(make_tree):
+    root = make_tree({"A/p/m.py": DUP, "B/p/m.py": DUP + SECOND, "C/p/m.py": DUP + SECOND})
+    snap = analyse_with_references(root / "C", [root / "A", root / "B"], Config(), base=root / "A")
+    kinds = {tuple(g["repos"]): g["kind"] for g in snap.cross_repo["function_clones"]}
+    assert kinds == {("A", "B", "C"): "in_base", ("B", "C"): "lift_candidate"}
+
+
+def test_cli_base_implies_with_and_prints_layering(make_tree, tmp_path, capsys):
+    root = _layered(make_tree, a_extra="from capp.main import helper as h\n")
+    assert main([str(root / "C"), "--base", str(root / "A")]) == 0
+    out = capsys.readouterr().out
+    assert "LAYERING VIOLATIONS" in out and "base A imports from C" in out

@@ -33,6 +33,7 @@ sloptrace . --history --every 20 --max-commits 15   # sample every 20th commit, 
 sloptrace . --history --since 2024-01-01 -o out.json
 sloptrace . --show-literals                  # also list repeated literals (noisy, off by default)
 sloptrace C --with ../A --with ../B       # also report code C shares with other repos (they aren't scored)
+sloptrace C --base ../A --with ../B       # ...and treat A as the shared base layer (reuse / lift / layering)
 sloptrace --help                             # all options
 ```
 

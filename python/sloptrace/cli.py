@@ -35,6 +35,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--with", dest="with_repos", action="append", type=Path, default=[], metavar="REPO",
                     help="another repo to match this one against (repeatable). It is indexed, not scored: "
                          "code shared with it is reported, its own metrics are not")
+    ap.add_argument("--base", type=Path, default=None, metavar="REPO",
+                    help="the shared lowest-layer repo (implies --with). Shared code is then split into "
+                         "already-in-base vs lift candidates, and base importing other repos is flagged")
     ap.add_argument("--history", action="store_true", help="walk git history instead of scoring the working tree")
     ap.add_argument("--every", type=int, default=1, help="sample every Nth commit (default 1)")
     ap.add_argument("--max-commits", type=int, default=10)
@@ -54,9 +57,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    if args.with_repos and args.history:
-        parser.error("--with can't be combined with --history yet")
-    for p in args.with_repos:
+    base = args.base.resolve() if args.base else None
+    references = list(dict.fromkeys([p.resolve() for p in args.with_repos] + ([base] if base else [])))
+    if references and args.history:
+        parser.error("--with/--base can't be combined with --history yet")
+    for p in references:
         if not p.is_dir():
             parser.error(f"--with: {p} is not a directory")
     config = Config(
@@ -70,8 +75,8 @@ def main(argv: list[str] | None = None) -> int:
         if not snaps:
             print("no commits matched", file=sys.stderr)
             return 1
-    elif args.with_repos:
-        snaps = [analyse_with_references(repo, [p.resolve() for p in args.with_repos], config)]
+    elif references:
+        snaps = [analyse_with_references(repo, references, config, base)]
     else:
         snaps = [analyse_tree(repo, "worktree", config)]
 
