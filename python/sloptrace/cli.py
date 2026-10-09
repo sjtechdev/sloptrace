@@ -38,6 +38,10 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--base", type=Path, default=None, metavar="REPO",
                     help="the shared lowest-layer repo (implies --with). Shared code is then split into "
                          "already-in-base vs lift candidates, and base importing other repos is flagged")
+    ap.add_argument("--similarity", type=float, default=defaults.near_dup_threshold, metavar="T",
+                    help="with --with/--base: also report functions at least this similar (0-1, by shared "
+                         f"statements) to one in another repo, not only exact copies (default {defaults.near_dup_threshold}; "
+                         "0 turns it off)")
     ap.add_argument("--history", action="store_true", help="walk git history instead of scoring the working tree")
     ap.add_argument("--every", type=int, default=1, help="sample every Nth commit (default 1)")
     ap.add_argument("--max-commits", type=int, default=10)
@@ -61,12 +65,15 @@ def main(argv: list[str] | None = None) -> int:
     references = list(dict.fromkeys([p.resolve() for p in args.with_repos] + ([base] if base else [])))
     if references and args.history:
         parser.error("--with/--base can't be combined with --history yet")
+    if not 0 <= args.similarity <= 1:
+        parser.error("--similarity must be between 0 and 1")
     for p in references:
         if not p.is_dir():
             parser.error(f"--with: {p} is not a directory")
     config = Config(
         excludes=tuple(args.exclude) if args.exclude is not None else DEFAULT_EXCLUDES,
         clone_window=args.clone_window,
+        near_dup_threshold=args.similarity,
     )
     repo = args.repo.resolve()
 

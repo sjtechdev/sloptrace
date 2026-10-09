@@ -14,10 +14,10 @@ base importing from a repo that depends on it, are reported as violations.
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
-from sloptrace import clones, literals
+from sloptrace import clones, literals, similar
 from sloptrace.config import Config
 from sloptrace.discover import ModuleIndex
 from sloptrace.imports import resolve_import
@@ -108,7 +108,24 @@ def find_shared(own: str, repos_: list[Repo], base: str | None, config: Config) 
                 "locations": [repos.show(*loc.rsplit(":", 1)) for loc in g["locations"]],
             })
     return {"function_clones": evidence(function_shared),
-            "block_clones": evidence(block_shared), "column_lists": column_lists}
+            "block_clones": evidence(block_shared), "column_lists": column_lists,
+            "near_duplicates": _near_duplicates(own, repos_, repos, base, config)}
+
+
+def _near_duplicates(own: str, repos_: list[Repo], repos: _Repos, base: str | None, config: Config) -> list[dict]:
+    """Functions in the scanned repo that closely resemble, without exactly
+    matching, a function in another repo."""
+    if config.near_dup_threshold <= 0:
+        return []
+    mine = [s for r in repos_ if r.label == own for f in r.facts for s in f.shapes.values()]
+    theirs = [s for r in repos_ if r.label != own for f in r.facts for s in f.shapes.values()]
+    out = []
+    for sim, a, b in similar.find_similar(mine, theirs, config.near_dup_threshold):
+        present = {own, repos.of(b.rel)}
+        out.append({"kind": _kind(present, base), "similarity": round(sim, 3),
+                    "repos": sorted(present),
+                    "locations": [repos.show(a.rel, f"{a.lo}-{a.hi}"), repos.show(b.rel, f"{b.lo}-{b.hi}")]})
+    return out
 
 
 def import_edges(repos_: list[Repo]) -> list[dict]:
@@ -169,6 +186,7 @@ def analyse_with_references(root: Path, references: list[Path], config: Config,
     """Score `root` as usual, then relate it to the other repos. `base`, if
     given, must be one of `references`."""
     own = root.name
+    config = replace(config, collect_shapes=config.near_dup_threshold > 0)
     own_facts, parse_errors = collect_facts(root, config)
     snap = aggregate(own_facts, ref, config, parse_errors, own)
 

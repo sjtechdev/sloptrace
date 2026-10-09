@@ -36,6 +36,11 @@ class Config:
     # two-statement idiom and is meaningless; 3 is a defensible minimum clone
     # size. Calibrated, not derived -- re-check on your own repo.
 
+    # -- near-duplicate functions (cross-repo, --with/--base) --
+    near_dup_threshold: float = 0.7      # Jaccard similarity of statement sets; 0 turns it off
+    near_dup_min_statements: int = 5     # distinct statement shapes a function needs to be compared
+    collect_shapes: bool = False         # set by crossrepo when needed; costs a little per function
+
     # -- repeated literals --
     min_literal_repeats: int = 4      # same string this many times in one file
     min_column_list_len: int = 3      # shorter lists (flag pairs, ("GET","POST")) are rarely schemas

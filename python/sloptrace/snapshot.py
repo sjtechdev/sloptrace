@@ -12,7 +12,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from sloptrace import clones, imports, literals, sloc
+from sloptrace import clones, imports, literals, similar, sloc
 from sloptrace.complexity import FunctionStat, cognitive_lookup, function_stats, no_cognitive
 from sloptrace.config import Config
 from sloptrace.discover import ModuleIndex, list_python_files
@@ -25,6 +25,7 @@ class FileFacts:
     functions: list[FunctionStat] = field(default_factory=list)
     fingerprints: dict = field(default_factory=dict)
     windows: dict = field(default_factory=dict)
+    shapes: dict = field(default_factory=dict)       # key -> similar.FunctionShape (cross-repo only)
     literal_repeats: list = field(default_factory=list)
     literal_lists: list = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)   # partial-analysis failures
@@ -54,6 +55,8 @@ def analyse_file(rel: str, src: str, config: Config) -> FileFacts | None:
     facts.imports = imports.collect_imports(tree)
     facts.fingerprints = clones.collect_fingerprints(tree, rel, config)
     facts.windows = clones.block_clone_windows(tree, rel, config.clone_window)
+    if config.collect_shapes:
+        facts.shapes = similar.collect_shapes(tree, rel, config)
     facts.literal_repeats = [{**hit, "file": rel} for hit in literals.repeated_literals(tree, config)]
     facts.literal_lists = literals.find_literal_lists(tree, rel, config)
     return facts

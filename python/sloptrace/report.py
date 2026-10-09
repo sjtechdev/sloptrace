@@ -33,7 +33,8 @@ def _print_cross_repo(x: dict, config: Config, w) -> None:
     base = x["base"]
     groups = [("whole functions", g) for g in x["function_clones"]] + \
              [("statement blocks", g) for g in x["block_clones"]] + \
-             [("column list", g) for g in x["column_lists"]]
+             [("column list", g) for g in x["column_lists"]] + \
+             [("near-duplicate", g) for g in x["near_duplicates"]]
     if not groups:
         w(f"\nSHARED WITH {', '.join(x['repos'])}  nothing found\n")
     for kind in ("in_base", "lift_candidate", "shared"):
@@ -41,13 +42,16 @@ def _print_cross_repo(x: dict, config: Config, w) -> None:
         if not mine:
             continue
         w("\n" + _KIND_TITLES[kind].format(base=base, repos=", ".join(x["repos"])) + "\n")
-        for label, g in mine[:config.evidence_top_n]:
-            extra = len(g["locations"]) - 4
-            shown = f"[{', '.join(repr(v) for v in g['values'][:5])}]  " if "values" in g else ""
-            w(f"  {len(g['locations']):>2}x  {shown}" + "  ".join(g["locations"][:4])
-              + (f"  +{extra} more" if extra > 0 else "") + f"   ({label})\n")
-        if len(mine) > config.evidence_top_n:
-            w(f"  ... {len(mine) - config.evidence_top_n} more in JSON output (-o)\n")
+        for label in dict.fromkeys(label for label, _ in mine):
+            of_type = [g for l, g in mine if l == label]
+            for g in of_type[:config.evidence_top_n]:
+                extra = len(g["locations"]) - 4
+                shown = f"[{', '.join(repr(v) for v in g['values'][:5])}]  " if "values" in g else ""
+                lead = f"{g['similarity']:>3.0%}" if "similarity" in g else f"{len(g['locations']):>2}x"
+                w(f"  {lead}  {shown}" + "  ".join(g["locations"][:4])
+                  + (f"  +{extra} more" if extra > 0 else "") + f"   ({label})\n")
+            if len(of_type) > config.evidence_top_n:
+                w(f"  ... {len(of_type) - config.evidence_top_n} more {label} in JSON output (-o)\n")
 
     if x["dependencies"]:
         w("\nREPO DEPENDENCIES\n")
