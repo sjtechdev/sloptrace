@@ -95,6 +95,9 @@ class Snapshot:
     deferred_imports: int = 0    # inside function bodies, run on call
     sccs: list = field(default_factory=list)      # [{modules: [paths], cycle: [a, b, ..., a]}]
 
+    # -- code shared with other repos (--with only) --
+    cross_repo: dict = field(default_factory=dict)   # {repos, function_clones, block_clones, column_lists}
+
     # -- deltas (history mode only) --
     delta_erosion_pct: float | None = None
 
@@ -173,22 +176,29 @@ def aggregate(facts: list[FileFacts], ref: str, config: Config, parse_errors: in
     return snap
 
 
+def collect_facts(root: Path, config: Config, label: str = "") -> tuple[list[FileFacts], int]:
+    """Per-file facts for every .py file under `root`, plus the count of
+    files that could not be read or parsed. With a `label`, file paths are
+    recorded as "label:path" so several roots can share one pool."""
+    facts, parse_errors = [], 0
+    for rel in list_python_files(root, config.excludes):
+        try:
+            src = (root / rel).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            parse_errors += 1
+            continue
+        f = analyse_file(f"{label}:{rel}" if label else rel, src, config)
+        if f is None:
+            parse_errors += 1
+        else:
+            facts.append(f)
+    return facts, parse_errors
+
+
 def analyse_tree(root: Path, ref: str, config: Config, root_name: str | None = None) -> Snapshot:
     """Score the .py files under `root`. `root_name` is the name the root
     directory would be imported as, if it is itself a package (defaults to
     its directory name; history mode passes the repo's real name, since it
     scores a temp-dir copy)."""
-    facts, parse_errors = [], 0
-    for rel in list_python_files(root, config.excludes):
-        p = root / rel
-        try:
-            src = p.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            parse_errors += 1
-            continue
-        f = analyse_file(rel, src, config)
-        if f is None:
-            parse_errors += 1
-        else:
-            facts.append(f)
+    facts, parse_errors = collect_facts(root, config)
     return aggregate(facts, ref, config, parse_errors, root_name or root.name)

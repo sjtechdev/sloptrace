@@ -77,6 +77,25 @@ def print_report(snaps: list[Snapshot], config: Config, show_literals: bool = Fa
         w(f"  divergent ({len(div)}): identical last snapshot, not any more -- "
           + "; ".join(" / ".join(m.split("::")[-1] for m in d["members"][:3]) for d in div[:4]) + "\n")
 
+    # ---- code shared with the --with repos ----
+    x = last.cross_repo
+    if x:
+        others = ", ".join(x["repos"])
+        found = x["function_clones"] or x["block_clones"] or x["column_lists"]
+        w(f"\nSHARED WITH {others}\n" if found else f"\nSHARED WITH {others}  nothing found\n")
+        for title, key in (("whole functions", "function_clones"), ("statement blocks", "block_clones")):
+            if x[key]:
+                w(f"  {title}, {len(x[key])} group(s):\n")
+                for g in x[key][:config.evidence_top_n]:
+                    extra = len(g["locations"]) - 4
+                    w(f"    {len(g['locations']):>2}x  " + "  ".join(g["locations"][:4])
+                      + (f"  +{extra} more" if extra > 0 else "") + "\n")
+        if x["column_lists"]:
+            w(f"  column lists, {len(x['column_lists'])} list(s):\n")
+            for g in x["column_lists"][:config.evidence_top_n]:
+                vals = ", ".join(repr(v) for v in g["values"][:6]) + (", …" if len(g["values"]) > 6 else "")
+                w(f"    {g['count']:>2}x  [{vals}]  " + "  ".join(g["locations"][:4]) + "\n")
+
     # ---- repeated literals: noisy on most codebases, so JSON-only unless
     # --show-literals is passed. Repeated COLUMN LISTS (below) is the
     # sharper signal and always prints. ----

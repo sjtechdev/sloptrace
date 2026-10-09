@@ -32,6 +32,7 @@ sloptrace /path/to/repo --history            # ...and how it changed over git hi
 sloptrace . --history --every 20 --max-commits 15   # sample every 20th commit, at most 15
 sloptrace . --history --since 2024-01-01 -o out.json
 sloptrace . --show-literals                  # also list repeated literals (noisy, off by default)
+sloptrace C --with ../A --with ../B       # also report code C shares with other repos (they aren't scored)
 sloptrace --help                             # all options
 ```
 
